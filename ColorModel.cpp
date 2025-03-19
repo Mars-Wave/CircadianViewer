@@ -1,42 +1,16 @@
 #include "ColorModel.h"
 #include <QtMath>
 
-ColorModel::ColorModel(QObject *parent) : QObject(parent)
+static uint8_t clampDoubleToUint8(double x, double min, double max)
 {
-    updateRgbColor();
+    if (x < min)
+        return min;
+    if (x > max)
+        return max;
+    return x;
 }
 
-QColor ColorModel::rgbColor() const
-{
-    return m_rgbColor;
-}
-
-int ColorModel::kelvin() const
-{
-    return m_kelvin;
-}
-
-int ColorModel::hue() const
-{
-    return m_hue;
-}
-
-int ColorModel::saturation() const
-{
-    return m_saturation;
-}
-
-int ColorModel::brightness() const
-{
-    return m_brightness;
-}
-
-QString ColorModel::hexColor() const
-{
-    return m_rgbColor.name(QColor::HexRgb).toUpper();
-}
-
-void ColorModel::setKelvin(int kelvin)
+void ColorModel::setKelvin(uint16_t kelvin)
 {
     if (m_kelvin != kelvin) {
         m_kelvin = kelvin;
@@ -47,8 +21,8 @@ void ColorModel::setKelvin(int kelvin)
 
 void ColorModel::updateRgbColor()
 {
-    double temp = m_kelvin / 100.0;
-    double red, green, blue;
+    const auto temp = m_kelvin / 100.0;
+    float red, green, blue;
 
     if (temp <= 66) {
         red = 255;
@@ -72,11 +46,7 @@ void ColorModel::updateRgbColor()
         blue = 255;
     }
 
-    int r = clamp(red, 0, 255);
-    int g = clamp(green, 0, 255);
-    int b = clamp(blue, 0, 255);
-    
-    QColor newColor(r, g, b);
+    QColor newColor(clampDoubleToUint8(red, 0, 255), clampDoubleToUint8(green, 0, 255), clampDoubleToUint8(blue, 0, 255));
     if (m_rgbColor != newColor) {
         m_rgbColor = newColor;
         updateHSB();
@@ -86,59 +56,41 @@ void ColorModel::updateRgbColor()
 
 void ColorModel::updateHSB()
 {
-    double r = m_rgbColor.redF();
-    double g = m_rgbColor.greenF();
-    double b = m_rgbColor.blueF();
+    const auto r = m_rgbColor.redF();
+    const auto g = m_rgbColor.greenF();
+    const auto b = m_rgbColor.blueF();
     
-    double max = qMax(qMax(r, g), b);
-    double min = qMin(qMin(r, g), b);
-    double delta = max - min;
-    
+    const auto max = qMax(qMax(r, g), b);
+    const auto min = qMin(qMin(r, g), b);
+    const auto delta = max - min;
+
+    hsb newHsb;
+
     // Calculate brightness
-    int newBrightness = qRound(max * 100);
+    newHsb.b = qRound(max * 100);
     
     // Calculate saturation
-    int newSaturation = max == 0 ? 0 : qRound((delta / max) * 100);
+    newHsb.s = max == 0 ? 0 : qRound((delta / max) * 100);
     
     // Calculate hue
-    int newHue = 0;
+    newHsb.h = 0;
     if (delta > 0) {
         if (max == r) {
-            newHue = qRound(60.0 * (fmod(((g - b) / delta), 6)));
+            newHsb.h = qRound(60.0 * (fmod(((g - b) / delta), 6)));
         } else if (max == g) {
-            newHue = qRound(60.0 * (((b - r) / delta) + 2));
+            newHsb.h = qRound(60.0 * (((b - r) / delta) + 2));
         } else {
-            newHue = qRound(60.0 * (((r - g) / delta) + 4));
+            newHsb.h = qRound(60.0 * (((r - g) / delta) + 4));
         }
         
-        if (newHue < 0) {
-            newHue += 360;
+        if (newHsb.h < 0) {
+            newHsb.h += 360;
         }
     }
-    
+
     // Update properties if changed
-    bool changed = false;
-    if (m_hue != newHue) {
-        m_hue = newHue;
-        changed = true;
-    }
-    if (m_saturation != newSaturation) {
-        m_saturation = newSaturation;
-        changed = true;
-    }
-    if (m_brightness != newBrightness) {
-        m_brightness = newBrightness;
-        changed = true;
-    }
-    
-    if (changed) {
+    if (m_hsb != newHsb) {
+        m_hsb = newHsb;
         emit hsbChanged();
     }
-}
-
-double ColorModel::clamp(double x, double min, double max)
-{
-    if (x < min) return min;
-    if (x > max) return max;
-    return x;
 }
