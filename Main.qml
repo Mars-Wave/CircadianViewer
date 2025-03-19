@@ -29,14 +29,23 @@ Window {
                 
                 // Add "Resulting Color" label to top right
                 Label {
+                    id: resultLabel
                     anchors.top: parent.top
                     anchors.right: parent.right
                     anchors.margins: 10
                     text: "Resulting Color"
-                    color: getBrightness(colorModel.rgbColor) > 0.5 ? "#000000" : "#FFFFFF"
+                    color: getBrightness(colorModel.rgbColor) > 0.95 ? "#000000" : "#FFFFFF"
                     font.pixelSize: 16
                     font.bold: true
-                    
+
+                    // Add smooth color transition
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: 150 // 0.15 seconds
+                            easing.type: Easing.OutQuad // Smooth easing curve
+                        }
+                    }
+
                     // Black background padding for better visibility on any color
                     Rectangle {
                         z: -1
@@ -228,6 +237,8 @@ Window {
     }
     
     // Helper function to determine if we should use black or white text
+    //     max around 0.999...
+    //     min around 0.57
     function getBrightness(color) {
         return (0.299 * color.r + 0.587 * color.g + 0.114 * color.b);
     }
